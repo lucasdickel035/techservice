@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Controle de Máquina de Cartão</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0f1a;
+    --surface: #111827;
+    --surface2: #1a2235;
+    --border: #1f2d45;
+    --accent: #00e5a0;
+    --accent2: #0ea5e9;
+    --danger: #f43f5e;
+    --warning: #f59e0b;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --green: #10b981;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Space Grotesk', sans-serif;
+    min-height: 100vh;
+    padding: 24px 16px;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    top: -200px; left: -200px;
+    width: 600px; height: 600px;
+    background: radial-gradient(circle, rgba(0,229,160,0.06) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .header {
+    text-align: center;
+    margin-bottom: 32px;
+  }
+
+  .header h1 {
+    font-size: 1.6rem;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    color: var(--text);
+  }
+
+  .header h1 span {
+    color: var(--accent);
+  }
+
+  .header p {
+    color: var(--muted);
+    font-size: 0.85rem;
+    margin-top: 4px;
+  }
+
+  /* CARDS SUMMARY */
+  .summary-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+
+  .summary-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .summary-card.full { grid-column: 1 / -1; }
+
+  .summary-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+  }
+
+  .summary-card.saldo::before { background: var(--accent); }
+  .summary-card.vendas::before { background: var(--accent2); }
+  .summary-card.taxas::before { background: var(--warning); }
+  .summary-card.saques::before { background: var(--danger); }
+
+  .summary-card .label {
+    font-size: 0.72rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+
+  .summary-card .value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .summary-card.saldo .value { color: var(--accent); }
+  .summary-card.vendas .value { color: var(--accent2); }
+  .summary-card.taxas .value { color: var(--warning); }
+  .summary-card.saques .value { color: var(--danger); }
+
+  .summary-card .icon {
+    position: absolute;
+    right: 14px;
+    top: 14px;
+    font-size: 1.4rem;
+    opacity: 0.3;
+  }
+
+  /* FORM */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+
+  .card-title {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--accent);
+    font-weight: 600;
+    margin-bottom: 16px;
+  }
+
+  .form-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+  }
+
+  .form-group {
+    flex: 1;
+    min-width: 120px;
+  }
+
+  .form-group label {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--muted);
+    margin-bottom: 6px;
+    font-weight: 500;
+  }
+
+  .form-group input, .form-group select {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    color: var(--text);
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.9rem;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .form-group input:focus, .form-group select:focus {
+    border-color: var(--accent);
+  }
+
+  .form-group select option { background: #111827; }
+
+  .taxa-preview {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 12px;
+    font-size: 0.82rem;
+    color: var(--muted);
+    display: none;
+  }
+
+  .taxa-preview.show { display: block; }
+
+  .taxa-preview .row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 4px;
+  }
+
+  .taxa-preview .row:last-child { margin-bottom: 0; }
+
+  .taxa-preview .highlight {
+    color: var(--accent);
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 600;
+  }
+
+  .taxa-preview .liquid {
+    color: var(--green);
+    font-weight: 600;
+  }
+
+  .btn {
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 8px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.3px;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: #0a0f1a;
+  }
+
+  .btn-primary:hover { filter: brightness(1.1); transform: translateY(-1px); }
+
+  .btn-danger {
+    background: transparent;
+    color: var(--danger);
+    border: 1px solid var(--danger);
+    margin-top: 8px;
+  }
+
+  .btn-danger:hover { background: rgba(244,63,94,0.1); }
+
+  /* TRANSACTIONS */
+  .transactions-list { display: flex; flex-direction: column; gap: 8px; }
+
+  .transaction-item {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    animation: slideIn 0.3s ease;
+  }
+
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .transaction-item .left .desc {
+    font-size: 0.88rem;
+    font-weight: 500;
+    margin-bottom: 2px;
+  }
+
+  .transaction-item .left .meta {
+    font-size: 0.72rem;
+    color: var(--muted);
+  }
+
+  .transaction-item .right { text-align: right; }
+
+  .transaction-item .right .amount {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.9rem;
+    font-weight: 600;
+  }
+
+  .transaction-item .right .net {
+    font-size: 0.72rem;
+    color: var(--muted);
+    margin-top: 1px;
+  }
+
+  .transaction-item.venda .right .amount { color: var(--accent2); }
+  .transaction-item.saque .right .amount { color: var(--danger); }
+
+  .badge {
+    display: inline-block;
+    font-size: 0.65rem;
+    padding: 2px 7px;
+    border-radius: 20px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-right: 4px;
+  }
+
+  .badge-credito { background: rgba(14,165,233,0.15); color: var(--accent2); }
+  .badge-debito { background: rgba(0,229,160,0.12); color: var(--accent); }
+  .badge-pix { background: rgba(139,92,246,0.15); color: #a78bfa; }
+  .badge-saque { background: rgba(244,63,94,0.12); color: var(--danger); }
+
+  .empty-state {
+    text-align: center;
+    padding: 32px;
+    color: var(--muted);
+    font-size: 0.85rem;
+  }
+
+  .empty-state .icon { font-size: 2rem; margin-bottom: 8px; }
+
+  .delete-btn {
+    background: none;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    padding: 4px 6px;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    transition: color 0.2s;
+    margin-left: 8px;
+  }
+
+  .delete-btn:hover { color: var(--danger); }
+
+  /* TABS */
+  .tabs {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 16px;
+    background: var(--surface);
+    padding: 4px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+  }
+
+  .tab {
+    flex: 1;
+    padding: 8px;
+    border: none;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--muted);
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .tab.active {
+    background: var(--accent);
+    color: #0a0f1a;
+  }
+
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  .filter-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .filter-row select {
+    flex: 1;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 10px;
+    color: var(--text);
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.8rem;
+    outline: none;
+  }
+
+  .section-divider {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--muted);
+    margin: 16px 0 8px;
+    font-weight: 600;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>💳 Controle de <span>Maquininha</span></h1>
+  <p>Taxas descontadas automaticamente</p>
+</div>
+
+<!-- SUMMARY -->
+<div class="summary-grid">
+  <div class="summary-card saldo full">
+    <div class="icon">💰</div>
+    <div class="label">Saldo Disponível (líquido)</div>
+    <div class="value" id="saldo-display">R$ 0,00</div>
+  </div>
+  <div class="summary-card vendas">
+    <div class="icon">📈</div>
+    <div class="label">Total Vendas</div>
+    <div class="value" id="vendas-display">R$ 0,00</div>
+  </div>
+  <div class="summary-card taxas">
+    <div class="icon">📊</div>
+    <div class="label">Taxas Pagas</div>
+    <div class="value" id="taxas-display">R$ 0,00</div>
+  </div>
+  <div class="summary-card saques full">
+    <div class="icon">💸</div>
+    <div class="label">Saques / Retiradas</div>
+    <div class="value" id="saques-display">R$ 0,00</div>
+  </div>
+</div>
+
+<!-- TABS -->
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('registrar')">+ Registrar</button>
+  <button class="tab" onclick="switchTab('historico')">Histórico</button>
+</div>
+
+<!-- TAB: REGISTRAR -->
+<div class="tab-content active" id="tab-registrar">
+
+  <!-- NOVA VENDA -->
+  <div class="card">
+    <div class="card-title">📥 Nova Venda</div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Valor da Venda (R$)</label>
+        <input type="number" id="valor-venda" placeholder="0,00" step="0.01" min="0" oninput="calcularTaxa()">
+      </div>
+      <div class="form-group">
+        <label>Forma de Pagamento</label>
+        <select id="forma-pagamento" onchange="toggleParcelas(); calcularTaxa()">
+          <option value="pix">Pix</option>
+          <option value="debito">Débito</option>
+          <option value="credito">Crédito</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row" id="row-parcelas" style="display:none">
+      <div class="form-group">
+        <label>Parcelas</label>
+        <select id="parcelas" onchange="calcularTaxa()">
+          <option value="1">1x</option>
+          <option value="2">2x</option>
+          <option value="3">3x</option>
+          <option value="4">4x</option>
+          <option value="5">5x</option>
+          <option value="6">6x</option>
+          <option value="7">7x</option>
+          <option value="8">8x</option>
+          <option value="9">9x</option>
+          <option value="10">10x</option>
+          <option value="11">11x</option>
+          <option value="12">12x</option>
+          <option value="13">13x (até 18x)</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Descrição (opcional)</label>
+        <input type="text" id="desc-venda" placeholder="Ex: Venda balcão">
+      </div>
+    </div>
+
+    <div class="taxa-preview" id="taxa-preview">
+      <div class="row">
+        <span>Valor bruto</span>
+        <span class="highlight" id="prev-bruto">—</span>
+      </div>
+      <div class="row">
+        <span>Taxa aplicada</span>
+        <span class="highlight" id="prev-taxa-pct">—</span>
+      </div>
+      <div class="row">
+        <span>Desconto (taxa)</span>
+        <span style="color:var(--warning)" id="prev-taxa-val">—</span>
+      </div>
+      <div class="row">
+        <span><strong>Valor líquido</strong></span>
+        <span class="liquid" id="prev-liquido">—</span>
+      </div>
+    </div>
+
+    <button class="btn btn-primary" onclick="registrarVenda()">Registrar Venda</button>
+  </div>
+
+  <!-- SAQUE -->
+  <div class="card">
+    <div class="card-title">📤 Saque / Retirada</div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Valor do Saque (R$)</label>
+        <input type="number" id="valor-saque" placeholder="0,00" step="0.01" min="0">
+      </div>
+      <div class="form-group">
+        <label>Descrição (opcional)</label>
+        <input type="text" id="desc-saque" placeholder="Ex: Pagamento fornecedor">
+      </div>
+    </div>
+    <button class="btn btn-danger" onclick="registrarSaque()">Registrar Saque</button>
+  </div>
+
+</div>
+
+<!-- TAB: HISTÓRICO -->
+<div class="tab-content" id="tab-historico">
+  <div class="card">
+    <div class="card-title">📋 Histórico de Transações</div>
+    <div class="filter-row">
+      <select id="filtro-tipo" onchange="renderHistorico()">
+        <option value="todos">Todos os tipos</option>
+        <option value="pix">Pix</option>
+        <option value="debito">Débito</option>
+        <option value="credito">Crédito</option>
+        <option value="saque">Saque</option>
+      </select>
+    </div>
+    <div class="transactions-list" id="historico-list">
+      <div class="empty-state">
+        <div class="icon">📭</div>
+        Nenhuma transação ainda
+      </div>
+    </div>
+    <button class="btn btn-danger" style="margin-top:16px" onclick="limparTudo()">🗑 Limpar tudo</button>
+  </div>
+</div>
+
+<script>
+const TAXAS = {
+  pix: 1.2,
+  debito: 1.9,
+  credito: {
+    1: 4.5, 2: 5.77, 3: 6.56, 4: 7.44, 5: 8.21,
+    6: 8.9, 7: 9.97, 8: 10.64, 9: 11.42, 10: 11.49,
+    11: 12.96, 12: 13.63, 13: 17.66
+  }
+};
+
+let transacoes = JSON.parse(localStorage.getItem('maquininha_trans') || '[]');
+
+function salvar() {
+  localStorage.setItem('maquininha_trans', JSON.stringify(transacoes));
+}
+
+function getTaxa(forma, parcelas) {
+  if (forma === 'pix') return TAXAS.pix;
+  if (forma === 'debito') return TAXAS.debito;
+  const p = parseInt(parcelas);
+  return TAXAS.credito[p >= 13 ? 13 : p] || 4.5;
+}
+
+function formatBRL(v) {
+  return 'R$ ' + v.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
+
+function toggleParcelas() {
+  const forma = document.getElementById('forma-pagamento').value;
+  document.getElementById('row-parcelas').style.display = forma === 'credito' ? 'flex' : 'none';
+}
+
+function calcularTaxa() {
+  const valor = parseFloat(document.getElementById('valor-venda').value);
+  const forma = document.getElementById('forma-pagamento').value;
+  const parcelas = document.getElementById('parcelas').value;
+  const preview = document.getElementById('taxa-preview');
+
+  if (!valor || valor <= 0) { preview.classList.remove('show'); return; }
+
+  const taxa = getTaxa(forma, parcelas);
+  const desconto = valor * taxa / 100;
+  const liquido = valor - desconto;
+
+  document.getElementById('prev-bruto').textContent = formatBRL(valor);
+  document.getElementById('prev-taxa-pct').textContent = taxa.toString().replace('.', ',') + '%';
+  document.getElementById('prev-taxa-val').textContent = '- ' + formatBRL(desconto);
+  document.getElementById('prev-liquido').textContent = formatBRL(liquido);
+  preview.classList.add('show');
+}
+
+function registrarVenda() {
+  const valor = parseFloat(document.getElementById('valor-venda').value);
+  const forma = document.getElementById('forma-pagamento').value;
+  const parcelas = parseInt(document.getElementById('parcelas').value) || 1;
+  const desc = document.getElementById('desc-venda').value.trim();
+
+  if (!valor || valor <= 0) { alert('Informe um valor válido!'); return; }
+
+  const taxa = getTaxa(forma, parcelas);
+  const desconto = valor * taxa / 100;
+  const liquido = valor - desconto;
+
+  transacoes.unshift({
+    id: Date.now(),
+    tipo: 'venda',
+    forma,
+    parcelas: forma === 'credito' ? parcelas : null,
+    valor,
+    taxa,
+    desconto,
+    liquido,
+    desc: desc || getDefaultDesc(forma, parcelas),
+    data: new Date().toLocaleString('pt-BR')
+  });
+
+  salvar();
+  atualizarResumo();
+  renderHistorico();
+
+  document.getElementById('valor-venda').value = '';
+  document.getElementById('desc-venda').value = '';
+  document.getElementById('taxa-preview').classList.remove('show');
+}
+
+function getDefaultDesc(forma, parcelas) {
+  if (forma === 'pix') return 'Venda Pix';
+  if (forma === 'debito') return 'Venda Débito';
+  return `Venda Crédito ${parcelas >= 13 ? '13x~18x' : parcelas + 'x'}`;
+}
+
+function registrarSaque() {
+  const valor = parseFloat(document.getElementById('valor-saque').value);
+  const desc = document.getElementById('desc-saque').value.trim();
+
+  if (!valor || valor <= 0) { alert('Informe um valor válido!'); return; }
+
+  const saldo = calcSaldo();
+  if (valor > saldo) {
+    alert('Saldo insuficiente! Saldo disponível: ' + formatBRL(saldo));
+    return;
+  }
+
+  transacoes.unshift({
+    id: Date.now(),
+    tipo: 'saque',
+    valor,
+    desc: desc || 'Saque / Retirada',
+    data: new Date().toLocaleString('pt-BR')
+  });
+
+  salvar();
+  atualizarResumo();
+  renderHistorico();
+
+  document.getElementById('valor-saque').value = '';
+  document.getElementById('desc-saque').value = '';
+}
+
+function calcSaldo() {
+  let saldo = 0;
+  transacoes.forEach(t => {
+    if (t.tipo === 'venda') saldo += t.liquido;
+    if (t.tipo === 'saque') saldo -= t.valor;
+  });
+  return saldo;
+}
+
+function atualizarResumo() {
+  let totalVendas = 0, totalTaxas = 0, totalSaques = 0;
+  transacoes.forEach(t => {
+    if (t.tipo === 'venda') { totalVendas += t.valor; totalTaxas += t.desconto; }
+    if (t.tipo === 'saque') totalSaques += t.valor;
+  });
+
+  document.getElementById('saldo-display').textContent = formatBRL(calcSaldo());
+  document.getElementById('vendas-display').textContent = formatBRL(totalVendas);
+  document.getElementById('taxas-display').textContent = formatBRL(totalTaxas);
+  document.getElementById('saques-display').textContent = formatBRL(totalSaques);
+}
+
+function renderHistorico() {
+  const filtro = document.getElementById('filtro-tipo').value;
+  const lista = document.getElementById('historico-list');
+
+  let filtradas = transacoes.filter(t => {
+    if (filtro === 'todos') return true;
+    if (filtro === 'saque') return t.tipo === 'saque';
+    return t.tipo === 'venda' && t.forma === filtro;
+  });
+
+  if (filtradas.length === 0) {
+    lista.innerHTML = '<div class="empty-state"><div class="icon">📭</div>Nenhuma transação encontrada</div>';
+    return;
+  }
+
+  lista.innerHTML = filtradas.map(t => {
+    if (t.tipo === 'saque') {
+      return `<div class="transaction-item saque">
+        <div class="left">
+          <div class="desc"><span class="badge badge-saque">Saque</span>${t.desc}</div>
+          <div class="meta">${t.data}</div>
+        </div>
+        <div class="right">
+          <div class="amount">- ${formatBRL(t.valor)}</div>
+          <button class="delete-btn" onclick="excluir(${t.id})">🗑</button>
+        </div>
+      </div>`;
+    }
+
+    const badgeClass = t.forma === 'pix' ? 'badge-pix' : t.forma === 'debito' ? 'badge-debito' : 'badge-credito';
+    const badgeText = t.forma === 'pix' ? 'Pix' : t.forma === 'debito' ? 'Débito' : `Cred ${t.parcelas >= 13 ? '13~18x' : t.parcelas + 'x'}`;
+
+    return `<div class="transaction-item venda">
+      <div class="left">
+        <div class="desc"><span class="badge ${badgeClass}">${badgeText}</span>${t.desc}</div>
+        <div class="meta">${t.data} · Taxa ${t.taxa.toString().replace('.', ',')}%</div>
+      </div>
+      <div class="right">
+        <div class="amount">+ ${formatBRL(t.valor)}</div>
+        <div class="net">líq. ${formatBRL(t.liquido)}</div>
+        <button class="delete-btn" onclick="excluir(${t.id})">🗑</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function excluir(id) {
+  if (!confirm('Excluir esta transação?')) return;
+  transacoes = transacoes.filter(t => t.id !== id);
+  salvar();
+  atualizarResumo();
+  renderHistorico();
+}
+
+function limparTudo() {
+  if (!confirm('Apagar TODAS as transações? Essa ação não pode ser desfeita.')) return;
+  transacoes = [];
+  salvar();
+  atualizarResumo();
+  renderHistorico();
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById('tab-' + tab).classList.add('active');
+  if (tab === 'historico') renderHistorico();
+}
+
+// Init
+toggleParcelas();
+atualizarResumo();
+renderHistorico();
+</script>
+</body>
+</html>
